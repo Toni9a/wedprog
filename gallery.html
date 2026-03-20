@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guest Gallery</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1212;
+      min-height: 100vh;
+      font-family: 'Cormorant Garamond', serif;
+      color: #f5e6e0;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 1.5rem;
+      border-bottom: 1px solid rgba(201,169,110,0.15);
+    }
+
+    .back {
+      background: none;
+      border: none;
+      color: rgba(201,169,110,0.7);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.25s;
+    }
+    .back:hover { color: #c9a96e; }
+
+    h1 {
+      font-size: 1rem;
+      font-weight: 300;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #c9a96e;
+    }
+
+    .header-spacer { width: 80px; }
+
+    /* Grid */
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      padding: 3px;
+    }
+
+    @media (min-width: 600px) {
+      #grid { grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; }
+    }
+
+    .grid-item {
+      aspect-ratio: 1;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      background: #2a1f1f;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    .grid-item.visible { opacity: 1; }
+
+    .grid-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+      display: block;
+    }
+    .grid-item:hover img { transform: scale(1.04); }
+
+    /* Loading / empty */
+    #status {
+      text-align: center;
+      padding: 5rem 2rem;
+      color: rgba(245,230,224,0.3);
+      font-style: italic;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── LIGHTBOX ── */
+    #lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(15,10,10,0.98);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    #lightbox.open { opacity: 1; pointer-events: all; }
+
+    #lb-img-wrap {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #lb-img {
+      max-width: 92vw;
+      max-height: 75vh;
+      object-fit: contain;
+      border-radius: 2px;
+      transition: opacity 0.4s ease;
+      will-change: opacity;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    #lb-img.fade { opacity: 0; }
+
+    .lb-top {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.5rem;
+      z-index: 10;
+    }
+
+    #lb-counter {
+      color: rgba(255,255,255,0.4);
+      font-size: 0.82rem;
+      letter-spacing: 0.18em;
+    }
+
+    #lb-close {
+      background: none;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      color: #fff;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: border-color 0.25s;
+    }
+    #lb-close:hover { border-color: #c9a96e; }
+
+    .lb-arrow {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      background: none;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      color: #fff;
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      transition: border-color 0.25s;
+    }
+    .lb-arrow:hover { border-color: #c9a96e; }
+    #lb-prev { left: clamp(0.5rem, 3vw, 2rem); }
+    #lb-next { right: clamp(0.5rem, 3vw, 2rem); }
+
+    /* Caption */
+    #lb-caption {
+      position: absolute;
+      bottom: 3rem;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      z-index: 10;
+      transition: opacity 0.4s ease;
+    }
+    #lb-caption.fade { opacity: 0; }
+    #lb-name {
+      color: #c9a96e;
+      font-size: 0.85rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    #lb-note {
+      color: rgba(245,230,224,0.5);
+      font-style: italic;
+      font-size: 0.95rem;
+      margin-top: 0.2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <button class="back" onclick="location.href='index.html'">← Program</button>
+    <h1>Guest Photos</h1>
+    <div class="header-spacer"></div>
+  </header>
+
+  <div id="status">Loading photos…</div>
+  <div id="grid"></div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox">
+    <div class="lb-top">
+      <span id="lb-counter"></span>
+      <button id="lb-close">✕</button>
+    </div>
+    <div id="lb-img-wrap">
+      <img id="lb-img" src="" alt="Guest photo" />
+    </div>
+    <button class="lb-arrow" id="lb-prev">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="lb-arrow" id="lb-next">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+    </button>
+    <div id="lb-caption">
+      <div id="lb-name"></div>
+      <div id="lb-note"></div>
+    </div>
+  </div>
+
+  <script>
+    const WORKER = 'https://wedding-uploads-worker.oluwatoni-esan.workers.dev';
+
+    let photos = [];
+    let current = 0;
+
+    const lightbox  = document.getElementById('lightbox');
+    const lbImg     = document.getElementById('lb-img');
+    const lbCounter = document.getElementById('lb-counter');
+    const lbCaption = document.getElementById('lb-caption');
+    const lbName    = document.getElementById('lb-name');
+    const lbNote    = document.getElementById('lb-note');
+    const grid      = document.getElementById('grid');
+    const status    = document.getElementById('status');
+
+    async function loadGallery() {
+      try {
+        const res = await fetch(`${WORKER}/gallery`);
+        const { photos: data } = await res.json();
+        photos = data;
+
+        if (!photos.length) {
+          status.textContent = 'No photos yet — be the first to share!';
+          return;
+        }
+
+        status.style.display = 'none';
+
+        photos.forEach((p, i) => {
+          const div = document.createElement('div');
+          div.className = 'grid-item';
+          const img = document.createElement('img');
+          img.src = `${WORKER}${p.url}`;
+          img.alt = p.name;
+          img.loading = 'lazy';
+          img.onload = () => {
+            div.classList.add('visible');
+          };
+          div.appendChild(img);
+          div.addEventListener('click', () => openLightbox(i));
+          grid.appendChild(div);
+        });
+      } catch (e) {
+        status.textContent = 'Could not load photos. Please refresh.';
+      }
+    }
+
+    function openLightbox(i) {
+      current = i;
+      setSlide(i, false);
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function setSlide(i, animate = true) {
+      current = (i + photos.length) % photos.length;
+      const p = photos[current];
+
+      if (animate) {
+        lbImg.classList.add('fade');
+        lbCaption.classList.add('fade');
+        setTimeout(() => {
+          lbImg.src = `${WORKER}${p.url}`;
+          lbImg.onload = () => lbImg.classList.remove('fade');
+          setTimeout(() => lbImg.classList.remove('fade'), 700);
+          lbCaption.classList.remove('fade');
+          updateCaption(p);
+          lbCounter.textContent = `${current + 1} / ${photos.length}`;
+        }, 350);
+      } else {
+        lbImg.src = `${WORKER}${p.url}`;
+        updateCaption(p);
+        lbCounter.textContent = `${current + 1} / ${photos.length}`;
+      }
+    }
+
+    function updateCaption(p) {
+      lbName.textContent = p.name !== 'Anonymous' ? p.name : '';
+      lbNote.textContent = p.note || '';
+    }
+
+    document.getElementById('lb-close').addEventListener('click', closeLightbox);
+    document.getElementById('lb-prev').addEventListener('click', () => setSlide(current - 1));
+    document.getElementById('lb-next').addEventListener('click', () => setSlide(current + 1));
+
+    document.addEventListener('keydown', e => {
+      if (!lightbox.classList.contains('open')) return;
+      if (e.key === 'ArrowLeft')  setSlide(current - 1);
+      if (e.key === 'ArrowRight') setSlide(current + 1);
+      if (e.key === 'Escape')     closeLightbox();
+    });
+
+    let tx = 0;
+    lightbox.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+    lightbox.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - tx;
+      if (Math.abs(dx) > 40) dx < 0 ? setSlide(current + 1) : setSlide(current - 1);
+    }, { passive: true });
+
+    loadGallery();
+  </script>
+</body>
+</html>

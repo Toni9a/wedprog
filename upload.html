@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Your Photos</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1212;
+      min-height: 100vh;
+      font-family: 'Cormorant Garamond', serif;
+      color: #f5e6e0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.2rem 4rem;
+    }
+
+    .back {
+      align-self: flex-start;
+      background: none;
+      border: none;
+      color: rgba(201,169,110,0.7);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-bottom: 2.5rem;
+      padding: 0;
+      transition: color 0.25s;
+    }
+    .back:hover { color: #c9a96e; }
+
+    h1 {
+      font-size: clamp(1.6rem, 5vw, 2.2rem);
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #c9a96e;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .sub {
+      font-style: italic;
+      color: rgba(245,230,224,0.5);
+      font-size: 1rem;
+      margin-bottom: 2.8rem;
+      text-align: center;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.4rem;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 1px dashed rgba(201,169,110,0.5);
+      border-radius: 4px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.3s, background 0.3s;
+      position: relative;
+    }
+    .drop-zone.over {
+      border-color: #c9a96e;
+      background: rgba(201,169,110,0.05);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .drop-icon {
+      font-size: 2rem;
+      margin-bottom: 0.8rem;
+      opacity: 0.5;
+    }
+    .drop-label {
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+      color: rgba(245,230,224,0.6);
+      text-transform: uppercase;
+    }
+    .drop-hint {
+      font-size: 0.78rem;
+      color: rgba(245,230,224,0.3);
+      margin-top: 0.4rem;
+      font-style: italic;
+    }
+
+    /* Preview strip */
+    #preview-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      display: none;
+    }
+    #preview-strip img {
+      width: 70px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #preview-strip img.loaded { opacity: 1; }
+
+    /* Fields */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    label {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(201,169,110,0.8);
+    }
+    input[type="text"], textarea {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,169,110,0.25);
+      border-radius: 2px;
+      color: #f5e6e0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      padding: 0.7rem 1rem;
+      outline: none;
+      transition: border-color 0.25s;
+      width: 100%;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: #c9a96e; }
+    textarea { resize: vertical; min-height: 80px; }
+    ::placeholder { color: rgba(245,230,224,0.25); }
+
+    /* Progress bar */
+    #progress-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    #progress-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(245,230,224,0.5);
+    }
+    #progress-bar-bg {
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #progress-bar {
+      height: 100%;
+      background: #c9a96e;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Submit */
+    .btn-submit {
+      border: 1px solid #c9a96e;
+      background: transparent;
+      color: #f5e6e0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      padding: 0.75rem 2rem;
+      cursor: pointer;
+      transition: background 0.3s, color 0.3s;
+      width: 100%;
+    }
+    .btn-submit:hover { background: #c9a96e; color: #1a1212; }
+    .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Success */
+    #success {
+      display: none;
+      text-align: center;
+      animation: fadeIn 0.8s ease forwards;
+    }
+    #success .tick { font-size: 2.5rem; margin-bottom: 1rem; }
+    #success h2 {
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: #c9a96e;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+    #success p { color: rgba(245,230,224,0.5); font-style: italic; font-size: 1rem; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <button class="back" onclick="location.href='index.html'">← Back to Program</button>
+
+  <h1>Upload Your Photos</h1>
+  <p class="sub">Share your moments from the celebration</p>
+
+  <div class="card" id="form-area">
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/*" multiple />
+      <div class="drop-icon">📷</div>
+      <div class="drop-label">Tap to choose photos</div>
+      <div class="drop-hint">You can select multiple at once</div>
+    </div>
+
+    <div id="preview-strip"></div>
+
+    <div class="field">
+      <label for="name-input">Your Name (optional)</label>
+      <input type="text" id="name-input" placeholder="e.g. Aunty Bola" maxlength="60" />
+    </div>
+
+    <div class="field">
+      <label for="note-input">Leave a Note (optional)</label>
+      <textarea id="note-input" placeholder="A little message for the couple…" maxlength="300"></textarea>
+    </div>
+
+    <div id="progress-wrap">
+      <div id="progress-label">Uploading…</div>
+      <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+    </div>
+
+    <button class="btn-submit" id="submit-btn" disabled>Upload Photos</button>
+  </div>
+
+  <div id="success">
+    <div class="tick">✦</div>
+    <h2>Photos Received</h2>
+    <p>Thank you — your photos will appear in the gallery once approved.</p>
+  </div>
+
+  <script>
+    const WORKER = 'https://wedding-uploads-worker.oluwatoni-esan.workers.dev';
+
+    const dropZone   = document.getElementById('drop-zone');
+    const fileInput  = document.getElementById('file-input');
+    const preview    = document.getElementById('preview-strip');
+    const submitBtn  = document.getElementById('submit-btn');
+    const progressW  = document.getElementById('progress-wrap');
+    const progressB  = document.getElementById('progress-bar');
+    let selectedFiles = [];
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('over');
+      handleFiles([...e.dataTransfer.files].filter(f => f.type.startsWith('image/')));
+    });
+
+    fileInput.addEventListener('change', () => handleFiles([...fileInput.files]));
+
+    function handleFiles(files) {
+      if (!files.length) return;
+      selectedFiles = files;
+      preview.style.display = 'flex';
+      preview.innerHTML = '';
+      files.forEach(f => {
+        const img = document.createElement('img');
+        const url = URL.createObjectURL(f);
+        img.onload = () => { img.classList.add('loaded'); URL.revokeObjectURL(url); };
+        img.src = url;
+        preview.appendChild(img);
+      });
+      submitBtn.disabled = false;
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      if (!selectedFiles.length) return;
+      submitBtn.disabled = true;
+      progressW.style.display = 'flex';
+
+      const form = new FormData();
+      const name = document.getElementById('name-input').value.trim();
+      const note = document.getElementById('note-input').value.trim();
+      if (name) form.append('name', name);
+      if (note) form.append('note', note);
+      selectedFiles.forEach(f => form.append('photos', f));
+
+      // Animate progress bar (fake progress while uploading)
+      let prog = 0;
+      const tick = setInterval(() => {
+        prog = Math.min(prog + Math.random() * 8, 85);
+        progressB.style.width = prog + '%';
+      }, 300);
+
+      try {
+        const res = await fetch(`${WORKER}/upload`, { method: 'POST', body: form });
+        clearInterval(tick);
+        if (!res.ok) throw new Error('Upload failed');
+        progressB.style.width = '100%';
+        await new Promise(r => setTimeout(r, 400));
+        document.getElementById('form-area').style.display = 'none';
+        document.getElementById('success').style.display = 'block';
+      } catch (e) {
+        clearInterval(tick);
+        progressW.style.display = 'none';
+        submitBtn.disabled = false;
+        alert('Something went wrong. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>
