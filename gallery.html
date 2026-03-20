@@ -194,6 +194,13 @@
       font-size: 0.95rem;
       margin-top: 0.2rem;
     }
+    #lb-location {
+      color: rgba(201,169,110,0.5);
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-top: 0.3rem;
+    }
   </style>
 </head>
 <body>
@@ -201,7 +208,7 @@
   <header>
     <button class="back" onclick="location.href='index.html'">← Program</button>
     <h1>Guest Photos</h1>
-    <div class="header-spacer"></div>
+    <a href="upload.html" class="back" style="text-decoration:none;">Upload ↑</a>
   </header>
 
   <div id="status">Loading photos…</div>
@@ -225,6 +232,7 @@
     <div id="lb-caption">
       <div id="lb-name"></div>
       <div id="lb-note"></div>
+      <div id="lb-location"></div>
     </div>
   </div>
 
@@ -238,8 +246,9 @@
     const lbImg     = document.getElementById('lb-img');
     const lbCounter = document.getElementById('lb-counter');
     const lbCaption = document.getElementById('lb-caption');
-    const lbName    = document.getElementById('lb-name');
-    const lbNote    = document.getElementById('lb-note');
+    const lbName     = document.getElementById('lb-name');
+    const lbNote     = document.getElementById('lb-note');
+    const lbLocation = document.getElementById('lb-location');
     const grid      = document.getElementById('grid');
     const status    = document.getElementById('status');
 
@@ -310,8 +319,9 @@
     }
 
     function updateCaption(p) {
-      lbName.textContent = p.name !== 'Anonymous' ? p.name : '';
-      lbNote.textContent = p.note || '';
+      lbName.textContent     = p.name !== 'Anonymous' ? p.name : '';
+      lbNote.textContent     = p.note || '';
+      lbLocation.textContent = p.location || '';
     }
 
     document.getElementById('lb-close').addEventListener('click', closeLightbox);

@@ -131,6 +131,41 @@
       text-transform: uppercase;
       color: rgba(201,169,110,0.8);
     }
+    input[type="email"] {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,169,110,0.25);
+      border-radius: 2px;
+      color: #f5e6e0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      padding: 0.7rem 1rem;
+      outline: none;
+      transition: border-color 0.25s;
+      width: 100%;
+    }
+    input[type="email"]:focus { border-color: #c9a96e; }
+
+    select {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,169,110,0.25);
+      border-radius: 2px;
+      color: #f5e6e0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      padding: 0.7rem 1rem;
+      outline: none;
+      transition: border-color 0.25s;
+      width: 100%;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a96e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+    }
+    select:focus { border-color: #c9a96e; }
+    select option { background: #2a1f1f; color: #f5e6e0; }
+
     input[type="text"], textarea {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(201,169,110,0.25);
@@ -227,8 +262,25 @@
     <div id="preview-strip"></div>
 
     <div class="field">
+      <label for="location-input">Where were these taken?</label>
+      <select id="location-input">
+        <option value="">Select a location…</option>
+        <option value="Trad">Traditional Ceremony</option>
+        <option value="Bride Arrival">Bride Arrival</option>
+        <option value="Church">Church</option>
+        <option value="Reception">Reception</option>
+        <option value="Afterparty">Afterparty</option>
+      </select>
+    </div>
+
+    <div class="field">
       <label for="name-input">Your Name (optional)</label>
       <input type="text" id="name-input" placeholder="e.g. Aunty Bola" maxlength="60" />
+    </div>
+
+    <div class="field">
+      <label for="email-input">Your Email (optional)</label>
+      <input type="email" id="email-input" placeholder="So we can notify you when your photos go live" />
     </div>
 
     <div class="field">
@@ -292,10 +344,14 @@
       progressW.style.display = 'flex';
 
       const form = new FormData();
-      const name = document.getElementById('name-input').value.trim();
-      const note = document.getElementById('note-input').value.trim();
-      if (name) form.append('name', name);
-      if (note) form.append('note', note);
+      const name     = document.getElementById('name-input').value.trim();
+      const email    = document.getElementById('email-input').value.trim();
+      const note     = document.getElementById('note-input').value.trim();
+      const location = document.getElementById('location-input').value;
+      if (name)     form.append('name', name);
+      if (email)    form.append('email', email);
+      if (note)     form.append('note', note);
+      if (location) form.append('location', location);
       selectedFiles.forEach(f => form.append('photos', f));
 
       // Animate progress bar (fake progress while uploading)
