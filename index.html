@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wedding Program</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1212;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      font-family: 'Cormorant Garamond', serif;
+    }
+
+    /* Main program picture */
+    #main-pic {
+      width: 100%;
+      max-width: 860px;
+      display: block;
+    }
+
+    /* Button area */
+    .cta {
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .btn-gallery {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.9rem 2.8rem;
+      border: 1.5px solid #c9a96e;
+      background: transparent;
+      color: #f5e6e0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .btn-gallery:hover {
+      background: #c9a96e;
+      color: #1a1212;
+    }
+
+    /* ── LIGHTBOX ── */
+    #lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(15, 10, 10, 0.98);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    #lightbox.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Image frame */
+    #lb-img-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #lb-img {
+      max-width: 90vw;
+      max-height: 82vh;
+      object-fit: contain;
+      border-radius: 2px;
+      box-shadow: 0 8px 60px rgba(0,0,0,0.6);
+      transition: opacity 0.7s ease;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    #lb-img.fade { opacity: 0; }
+
+    /* Top bar */
+    .lb-top {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.5rem;
+      z-index: 10;
+    }
+
+    #lb-counter {
+      color: rgba(255,255,255,0.45);
+      font-size: 0.85rem;
+      letter-spacing: 0.18em;
+    }
+
+    #lb-close {
+      background: none;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      color: #fff;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: border-color 0.25s, background 0.25s;
+    }
+
+    #lb-close:hover { border-color: #c9a96e; background: rgba(201,169,110,0.2); }
+
+    /* Arrows */
+    .lb-arrow {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      background: none;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      color: #fff;
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      transition: border-color 0.25s, background 0.25s;
+    }
+
+    .lb-arrow:hover { border-color: #c9a96e; background: rgba(201,169,110,0.2); }
+
+    #lb-prev { left: clamp(0.6rem, 3vw, 2.5rem); }
+    #lb-next { right: clamp(0.6rem, 3vw, 2.5rem); }
+
+    /* Dots */
+    .lb-dots {
+      position: absolute;
+      bottom: 5rem;
+      left: 50%; transform: translateX(-50%);
+      display: flex; gap: 0.5rem;
+      z-index: 10;
+    }
+
+    .lb-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.3s;
+    }
+
+    .lb-dot.active { background: #c9a96e; transform: scale(1.4); }
+
+    /* Return button */
+    .lb-return {
+      position: absolute;
+      bottom: 1.6rem;
+      left: 50%; transform: translateX(-50%);
+      z-index: 10;
+      background: none;
+      border: 1px solid rgba(201,169,110,0.5);
+      color: rgba(255,255,255,0.7);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 0.55rem 1.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.25s, border-color 0.25s;
+    }
+
+    .lb-return:hover { color: #c9a96e; border-color: #c9a96e; }
+  </style>
+</head>
+<body>
+
+  <!-- MAIN PROGRAM PICTURE -->
+  <img id="main-pic" src="main pic.PNG" alt="Wedding Program" />
+
+  <!-- ONLY BUTTON -->
+  <div class="cta">
+    <button class="btn-gallery" id="openGallery">See More Pictures</button>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox">
+    <div class="lb-top">
+      <span id="lb-counter"></span>
+      <button id="lb-close">✕</button>
+    </div>
+
+    <div id="lb-img-wrap">
+      <img id="lb-img" src="" alt="Wedding photo" />
+    </div>
+
+    <button class="lb-arrow" id="lb-prev">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <button class="lb-arrow" id="lb-next">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 6 15 12 9 18"/>
+      </svg>
+    </button>
+
+    <div class="lb-dots" id="lb-dots"></div>
+
+    <button class="lb-return" id="lb-return">← Return to Program</button>
+  </div>
+
+  <script>
+    const images = [
+      'IMG_0480.JPG',
+      'IMG_0481.JPG',
+      'IMG_0482.JPG',
+      'IMG_0483.JPG',
+      'IMG_0484.JPG',
+      'IMG_0485.JPG',
+    ];
+
+    const lightbox  = document.getElementById('lightbox');
+    const lbImg     = document.getElementById('lb-img');
+    const lbCounter = document.getElementById('lb-counter');
+    const dotsEl    = document.getElementById('lb-dots');
+    let current     = 0;
+
+    // Build dots
+    images.forEach((_, i) => {
+      const d = document.createElement('button');
+      d.className = 'lb-dot' + (i === 0 ? ' active' : '');
+      d.addEventListener('click', () => goTo(i));
+      dotsEl.appendChild(d);
+    });
+
+    const dots = () => document.querySelectorAll('.lb-dot');
+
+    function updateDots(i) {
+      dots().forEach((d, idx) => d.classList.toggle('active', idx === i));
+    }
+
+    function goTo(index) {
+      current = (index + images.length) % images.length;
+      // fade out
+      lbImg.classList.add('fade');
+      setTimeout(() => {
+        lbImg.src = images[current];
+        lbImg.onload = () => lbImg.classList.remove('fade');
+        // fallback remove fade in case onload already fired
+        setTimeout(() => lbImg.classList.remove('fade'), 800);
+        lbCounter.textContent = (current + 1) + ' / ' + images.length;
+        updateDots(current);
+      }, 350);
+    }
+
+    function openLightbox() {
+      current = 0;
+      lbImg.src = images[0];
+      lbCounter.textContent = '1 / ' + images.length;
+      updateDots(0);
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('openGallery').addEventListener('click', openLightbox);
+    document.getElementById('lb-close').addEventListener('click', closeLightbox);
+    document.getElementById('lb-return').addEventListener('click', closeLightbox);
+    document.getElementById('lb-prev').addEventListener('click', () => goTo(current - 1));
+    document.getElementById('lb-next').addEventListener('click', () => goTo(current + 1));
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if (!lightbox.classList.contains('open')) return;
+      if (e.key === 'ArrowLeft')  goTo(current - 1);
+      if (e.key === 'ArrowRight') goTo(current + 1);
+      if (e.key === 'Escape')     closeLightbox();
+    });
+
+    // Swipe
+    let tx = 0;
+    lightbox.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+    lightbox.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - tx;
+      if (Math.abs(dx) > 40) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+    }, { passive: true });
+  </script>
+</body>
+</html>
