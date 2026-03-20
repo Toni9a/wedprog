@@ -20,7 +20,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 1.4rem 1.5rem;
+      padding: 1.1rem 1.5rem;
       border-bottom: 1px solid rgba(201,169,110,0.15);
     }
 
@@ -35,6 +35,7 @@
       cursor: pointer;
       padding: 0;
       transition: color 0.25s;
+      text-decoration: none;
     }
     .back:hover { color: #c9a96e; }
 
@@ -46,7 +47,43 @@
       color: #c9a96e;
     }
 
-    .header-spacer { width: 80px; }
+    .icon-btn {
+      background: none;
+      border: 1px solid rgba(201,169,110,0.35);
+      color: rgba(201,169,110,0.8);
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 0.25s, color 0.25s;
+      flex-shrink: 0;
+    }
+    .icon-btn:hover { border-color: #c9a96e; color: #c9a96e; }
+
+    /* Filter pills */
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.8rem 1.2rem;
+      border-bottom: 1px solid rgba(201,169,110,0.08);
+      overflow-x: auto;
+    }
+    .pill {
+      background: none;
+      border: 1px solid rgba(201,169,110,0.25);
+      color: rgba(245,230,224,0.45);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.9rem;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.22s;
+    }
+    .pill.active, .pill:hover { border-color: #c9a96e; color: #c9a96e; }
 
     /* Grid */
     #grid {
@@ -208,8 +245,19 @@
   <header>
     <button class="back" onclick="location.href='index.html'">← Program</button>
     <h1>Guest Photos</h1>
-    <a href="upload.html" class="back" style="text-decoration:none;">Upload ↑</a>
+    <a href="upload.html" class="icon-btn" title="Upload photos">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </a>
   </header>
+
+  <div class="filters">
+    <button class="pill active" data-loc="">All</button>
+    <button class="pill" data-loc="Trad">Trad</button>
+    <button class="pill" data-loc="Reception">Reception</button>
+  </div>
 
   <div id="status">Loading photos…</div>
   <div id="grid"></div>
@@ -239,46 +287,69 @@
   <script>
     const WORKER = 'https://wedding-uploads-worker.oluwatoni-esan.workers.dev';
 
-    let photos = [];
-    let current = 0;
+    let allPhotos = [];
+    let filtered  = [];
+    let current   = 0;
+    let activeFilter = '';
 
-    const lightbox  = document.getElementById('lightbox');
-    const lbImg     = document.getElementById('lb-img');
-    const lbCounter = document.getElementById('lb-counter');
-    const lbCaption = document.getElementById('lb-caption');
+    const lightbox   = document.getElementById('lightbox');
+    const lbImg      = document.getElementById('lb-img');
+    const lbCounter  = document.getElementById('lb-counter');
+    const lbCaption  = document.getElementById('lb-caption');
     const lbName     = document.getElementById('lb-name');
     const lbNote     = document.getElementById('lb-note');
     const lbLocation = document.getElementById('lb-location');
-    const grid      = document.getElementById('grid');
-    const status    = document.getElementById('status');
+    const grid       = document.getElementById('grid');
+    const status     = document.getElementById('status');
+
+    // Filter pills
+    document.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeFilter = pill.dataset.loc;
+        applyFilter();
+      });
+    });
+
+    function applyFilter() {
+      filtered = activeFilter ? allPhotos.filter(p => p.location === activeFilter) : allPhotos;
+      renderGrid();
+    }
+
+    function renderGrid() {
+      grid.innerHTML = '';
+      if (!filtered.length) {
+        status.style.display = 'block';
+        status.textContent = allPhotos.length ? 'No photos for this location yet.' : 'No photos yet — be the first to share!';
+        return;
+      }
+      status.style.display = 'none';
+      filtered.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'grid-item';
+        const img = document.createElement('img');
+        img.src = `${WORKER}${p.url}`;
+        img.alt = p.name;
+        img.loading = 'lazy';
+        img.onload = () => div.classList.add('visible');
+        div.appendChild(img);
+        div.addEventListener('click', () => openLightbox(i));
+        grid.appendChild(div);
+      });
+    }
 
     async function loadGallery() {
       try {
         const res = await fetch(`${WORKER}/gallery`);
         const { photos: data } = await res.json();
-        photos = data;
-
-        if (!photos.length) {
+        allPhotos = data;
+        filtered  = data;
+        if (!allPhotos.length) {
           status.textContent = 'No photos yet — be the first to share!';
           return;
         }
-
-        status.style.display = 'none';
-
-        photos.forEach((p, i) => {
-          const div = document.createElement('div');
-          div.className = 'grid-item';
-          const img = document.createElement('img');
-          img.src = `${WORKER}${p.url}`;
-          img.alt = p.name;
-          img.loading = 'lazy';
-          img.onload = () => {
-            div.classList.add('visible');
-          };
-          div.appendChild(img);
-          div.addEventListener('click', () => openLightbox(i));
-          grid.appendChild(div);
-        });
+        renderGrid();
       } catch (e) {
         status.textContent = 'Could not load photos. Please refresh.';
       }
@@ -297,8 +368,8 @@
     }
 
     function setSlide(i, animate = true) {
-      current = (i + photos.length) % photos.length;
-      const p = photos[current];
+      current = (i + filtered.length) % filtered.length;
+      const p = filtered[current];
 
       if (animate) {
         lbImg.classList.add('fade');
@@ -309,12 +380,12 @@
           setTimeout(() => lbImg.classList.remove('fade'), 700);
           lbCaption.classList.remove('fade');
           updateCaption(p);
-          lbCounter.textContent = `${current + 1} / ${photos.length}`;
+          lbCounter.textContent = `${current + 1} / ${filtered.length}`;
         }, 350);
       } else {
         lbImg.src = `${WORKER}${p.url}`;
         updateCaption(p);
-        lbCounter.textContent = `${current + 1} / ${photos.length}`;
+        lbCounter.textContent = `${current + 1} / ${filtered.length}`;
       }
     }
 

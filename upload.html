@@ -30,7 +30,6 @@
       letter-spacing: 0.18em;
       text-transform: uppercase;
       cursor: pointer;
-      margin-bottom: 2.5rem;
       padding: 0;
       transition: color 0.25s;
     }
@@ -245,7 +244,10 @@
 </head>
 <body>
 
-  <button class="back" onclick="location.href='index.html'">← Back to Program</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:520px;margin-bottom:2.5rem;">
+    <button class="back" onclick="location.href='index.html'">← Program</button>
+    <a href="gallery.html" class="back" style="text-decoration:none;">View Gallery →</a>
+  </div>
 
   <h1>Upload Your Photos</h1>
   <p class="sub">Share your moments from the celebration</p>
@@ -266,10 +268,7 @@
       <select id="location-input">
         <option value="">Select a location…</option>
         <option value="Trad">Traditional Ceremony</option>
-        <option value="Bride Arrival">Bride Arrival</option>
-        <option value="Church">Church</option>
         <option value="Reception">Reception</option>
-        <option value="Afterparty">Afterparty</option>
       </select>
     </div>
 
@@ -352,6 +351,9 @@
       if (email)    form.append('email', email);
       if (note)     form.append('note', note);
       if (location) form.append('location', location);
+      // Send each file's device timestamp so the backend can sort by shoot time
+      const lastModifieds = selectedFiles.map(f => f.lastModified);
+      form.append('lastModifieds', JSON.stringify(lastModifieds));
       selectedFiles.forEach(f => form.append('photos', f));
 
       // Animate progress bar (fake progress while uploading)
