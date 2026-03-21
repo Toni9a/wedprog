@@ -1,4 +1,8 @@
-const ADMIN_PASSWORD = 'lagos123';
+const ALLOWED_TYPES = new Set([
+  'image/jpeg','image/jpg','image/png','image/gif',
+  'image/webp','image/heic','image/heif',
+  'video/mp4','video/quicktime','video/mov','video/webm','video/mpeg',
+]);
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -13,8 +17,9 @@ function json(data, status = 200) {
   });
 }
 
-function checkAdmin(request) {
-  return request.headers.get('X-Admin-Password') === ADMIN_PASSWORD;
+function checkAdmin(request, env) {
+  const pw = request.headers.get('X-Admin-Password');
+  return pw && pw === (env.ADMIN_PASSWORD || 'lagos123');
 }
 
 async function sha256hex(buffer) {
@@ -24,13 +29,13 @@ async function sha256hex(buffer) {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    const url  = new URL(request.url);
     const path = url.pathname;
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
 
     try {
-      // Upload
+      // ── Upload ──────────────────────────────────────────────────────────
       if (path === '/upload' && request.method === 'POST') {
         const form = await request.formData();
         const name     = (form.get('name') || 'Anonymous').trim() || 'Anonymous';
@@ -43,23 +48,34 @@ export default {
 
         if (!files.length) return json({ error: 'No files provided' }, 400);
 
-        const uploaded = [];
+        const uploaded   = [];
         const duplicates = [];
+        const rejected   = [];
 
         for (let idx = 0; idx < files.length; idx++) {
           const file = files[idx];
+          const mime = (file.type || '').toLowerCase();
 
-          // Buffer the file so we can hash it and then store it
-          const bytes = await file.arrayBuffer();
-          const hash  = await sha256hex(bytes);
-          const hashKey = `hashes/${hash}`;
-
-          // Check for duplicate
-          const existing = await env.BUCKET.head(hashKey);
-          if (existing) {
-            duplicates.push(file.name);
+          // Server-side MIME whitelist
+          if (!ALLOWED_TYPES.has(mime)) {
+            rejected.push(file.name);
             continue;
           }
+
+          const bytes = await file.arrayBuffer();
+
+          // 500 MB per-file hard cap (Cloudflare Worker body limit)
+          if (bytes.byteLength > 500 * 1024 * 1024) {
+            rejected.push(file.name);
+            continue;
+          }
+
+          const hash    = await sha256hex(bytes);
+          const hashKey = `hashes/${hash}`;
+
+          // Duplicate check
+          const existing = await env.BUCKET.head(hashKey);
+          if (existing) { duplicates.push(file.name); continue; }
 
           const ext        = (file.name.split('.').pop() || 'jpg').toLowerCase();
           const id         = crypto.randomUUID();
@@ -67,20 +83,12 @@ export default {
           const photoTakenAt = (lastModifieds[idx] || '').toString();
           const key        = `pending/${uploadedAt}-${id}.${ext}`;
 
-          // Store photo
           await env.BUCKET.put(key, bytes, {
-            httpMetadata: { contentType: file.type || 'image/jpeg' },
-            customMetadata: {
-              name, note, email, location,
-              status: 'pending',
-              timestamp: uploadedAt,
-              photoTakenAt,
-              originalName: file.name,
-              hash,
-            },
+            httpMetadata: { contentType: mime },
+            customMetadata: { name, note, email, location, status: 'pending',
+              timestamp: uploadedAt, photoTakenAt, originalName: file.name, hash },
           });
 
-          // Store hash marker so future duplicates are caught
           await env.BUCKET.put(hashKey, new Uint8Array(0), {
             customMetadata: { photoKey: key },
           });
@@ -88,10 +96,10 @@ export default {
           uploaded.push(key);
         }
 
-        return json({ success: true, count: uploaded.length, duplicates });
+        return json({ success: true, count: uploaded.length, duplicates, rejected });
       }
 
-      // Gallery – approved photos only
+      // ── Gallery – approved only ─────────────────────────────────────────
       if (path === '/gallery' && request.method === 'GET') {
         const listed = await env.BUCKET.list({ prefix: 'approved/', include: ['customMetadata'] });
         const photos = listed.objects
@@ -108,20 +116,26 @@ export default {
         return json({ photos });
       }
 
-      // Serve a photo
+      // ── Serve a photo ───────────────────────────────────────────────────
       if (path.startsWith('/photo/') && request.method === 'GET') {
         const key = decodeURIComponent(path.slice('/photo/'.length));
+
+        // Block pending and hashes from public access
+        if (key.startsWith('pending/') || key.startsWith('hashes/')) {
+          if (!checkAdmin(request, env)) return new Response('Forbidden', { status: 403, headers: cors });
+        }
+
         const obj = await env.BUCKET.get(key);
-        if (!obj) return new Response('Not found', { status: 404 });
+        if (!obj) return new Response('Not found', { status: 404, headers: cors });
         const headers = new Headers(cors);
         obj.writeHttpMetadata(headers);
         headers.set('Cache-Control', 'public, max-age=31536000');
         return new Response(obj.body, { headers });
       }
 
-      // Admin – list all photos
+      // ── Admin – list all photos ─────────────────────────────────────────
       if (path === '/admin/photos' && request.method === 'GET') {
-        if (!checkAdmin(request)) return json({ error: 'Unauthorized' }, 401);
+        if (!checkAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
         const [pending, approved] = await Promise.all([
           env.BUCKET.list({ prefix: 'pending/', include: ['customMetadata'] }),
           env.BUCKET.list({ prefix: 'approved/', include: ['customMetadata'] }),
@@ -145,20 +159,20 @@ export default {
         return json({ photos });
       }
 
-      // Admin – approve photo
+      // ── Admin – approve ─────────────────────────────────────────────────
       if (path === '/admin/approve' && request.method === 'POST') {
-        if (!checkAdmin(request)) return json({ error: 'Unauthorized' }, 401);
+        if (!checkAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
         const { key } = await request.json();
+        if (!key.startsWith('pending/')) return json({ error: 'Invalid key' }, 400);
         const obj = await env.BUCKET.get(key);
         if (!obj) return json({ error: 'Not found' }, 404);
         const newKey = key.replace('pending/', 'approved/');
-        const meta = obj.customMetadata || {};
+        const meta   = obj.customMetadata || {};
         await env.BUCKET.put(newKey, obj.body, {
           httpMetadata: obj.httpMetadata,
           customMetadata: { ...meta, status: 'approved' },
         });
         await env.BUCKET.delete(key);
-        // Update hash marker to point to new key
         if (meta.hash) {
           await env.BUCKET.put(`hashes/${meta.hash}`, new Uint8Array(0), {
             customMetadata: { photoKey: newKey },
@@ -167,12 +181,11 @@ export default {
         return json({ success: true, newKey });
       }
 
-      // Admin – delete photo (also removes hash so same photo can be re-uploaded)
+      // ── Admin – delete ──────────────────────────────────────────────────
       if (path === '/admin/delete' && request.method === 'DELETE') {
-        if (!checkAdmin(request)) return json({ error: 'Unauthorized' }, 401);
+        if (!checkAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
         const { key } = await request.json();
-        // Get hash before deleting
-        const obj = await env.BUCKET.get(key);
+        const obj  = await env.BUCKET.get(key);
         const hash = obj?.customMetadata?.hash;
         await env.BUCKET.delete(key);
         if (hash) await env.BUCKET.delete(`hashes/${hash}`);
@@ -181,7 +194,7 @@ export default {
 
       return new Response('Not found', { status: 404 });
     } catch (e) {
-      return json({ error: e.message }, 500);
+      return json({ error: 'Internal error' }, 500);
     }
   },
 };
