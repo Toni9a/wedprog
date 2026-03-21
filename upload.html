@@ -77,6 +77,7 @@
     }
     .drop-zone input[type="file"] {
       position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0; /* fallback for older Android */
       inset: 0;
       opacity: 0;
       cursor: pointer;
@@ -362,15 +363,34 @@
     const progressB  = document.getElementById('progress-bar');
     const errorEl    = document.getElementById('upload-error');
     let selectedFiles = [];
+    let blobURLs = []; // tracked separately so we never revoke inside onload
 
     const MAX_TOTAL = 1 * 1024 * 1024 * 1024; // 1 GB
+
+    // Android Chrome sometimes returns empty file.type — infer from extension
+    const EXT_MIME = {
+      jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+      webp:'image/webp', heic:'image/heic', heif:'image/heif',
+      mp4:'video/mp4', mov:'video/quicktime', webm:'video/webm',
+      mpeg:'video/mpeg', m4v:'video/mp4', avi:'video/x-msvideo',
+    };
+    function getMime(file) {
+      const t = (file.type || '').toLowerCase();
+      if (t) return t;
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      return EXT_MIME[ext] || 'image/jpeg'; // default to jpeg if unknown
+    }
 
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.classList.remove('over');
-      handleFiles([...e.dataTransfer.files].filter(f => f.type.startsWith('image/') || f.type.startsWith('video/')));
+      const files = [...e.dataTransfer.files].filter(f => {
+        const m = getMime(f);
+        return m.startsWith('image/') || m.startsWith('video/');
+      });
+      handleFiles(files);
     });
 
     fileInput.addEventListener('change', () => handleFiles([...fileInput.files]));
@@ -387,9 +407,9 @@
 
       // 1 video max — warn and drop extras
       let videoCount = 0;
-      const tooManyVideos = files.filter(f => f.type.startsWith('video/')).length > 1;
+      const tooManyVideos = files.filter(f => getMime(f).startsWith('video/')).length > 1;
       files = files.filter(f => {
-        if (f.type.startsWith('video/')) { videoCount++; return videoCount === 1; }
+        if (getMime(f).startsWith('video/')) { videoCount++; return videoCount === 1; }
         return true;
       });
       if (tooManyVideos) showError('Only 1 video can be uploaded at a time — extras were removed.');
@@ -405,15 +425,22 @@
       renderPreview();
     }
 
+    function releaseBlobURLs() {
+      blobURLs.forEach(u => URL.revokeObjectURL(u));
+      blobURLs = [];
+    }
+
     function renderPreview() {
+      releaseBlobURLs(); // clean up previous round
       preview.innerHTML = '';
       if (!selectedFiles.length) { preview.style.display = 'none'; submitBtn.disabled = true; return; }
       preview.style.display = 'flex';
       selectedFiles.forEach((f, idx) => {
         const wrap = document.createElement('div');
         wrap.className = 'preview-item';
+        const mime = getMime(f);
 
-        if (f.type.startsWith('video/')) {
+        if (mime.startsWith('video/')) {
           const thumb = document.createElement('div');
           thumb.className = 'video-thumb';
           thumb.textContent = '▶';
@@ -421,7 +448,16 @@
         } else {
           const img = document.createElement('img');
           const url = URL.createObjectURL(f);
-          img.onload = () => { img.classList.add('loaded'); URL.revokeObjectURL(url); };
+          blobURLs.push(url); // revoke later — NEVER inside onload (breaks Android)
+          img.onload = () => img.classList.add('loaded');
+          img.onerror = () => {
+            // If blob URL fails (rare on Android), show a placeholder
+            img.style.display = 'none';
+            const ph = document.createElement('div');
+            ph.className = 'video-thumb';
+            ph.textContent = '🖼';
+            wrap.insertBefore(ph, img);
+          };
           img.src = url;
           wrap.appendChild(img);
         }
@@ -485,13 +521,14 @@
         if (result.count === 0) {
           document.getElementById('success-heading').textContent = 'Already Uploaded';
         }
+        releaseBlobURLs();
         document.getElementById('form-area').style.display = 'none';
         document.getElementById('success').style.display = 'block';
       } catch (e) {
         clearInterval(tick);
         progressW.style.display = 'none';
         submitBtn.disabled = false;
-        alert('Something went wrong. Please try again.');
+        showError('Upload failed — please check your connection and try again.');
       }
     });
   </script>

@@ -4,6 +4,20 @@ const ALLOWED_TYPES = new Set([
   'video/mp4','video/quicktime','video/mov','video/webm','video/mpeg',
 ]);
 
+// Android Chrome sometimes sends empty file.type — fall back to extension
+const EXT_MIME = {
+  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+  webp:'image/webp', heic:'image/heic', heif:'image/heif',
+  mp4:'video/mp4', mov:'video/quicktime', webm:'video/webm',
+  mpeg:'video/mpeg', m4v:'video/mp4', avi:'video/x-msvideo',
+};
+function resolveMime(file) {
+  const t = (file.type || '').toLowerCase();
+  if (t && ALLOWED_TYPES.has(t)) return t;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  return EXT_MIME[ext] || '';
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
@@ -54,10 +68,10 @@ export default {
 
         for (let idx = 0; idx < files.length; idx++) {
           const file = files[idx];
-          const mime = (file.type || '').toLowerCase();
+          const mime = resolveMime(file);
 
-          // Server-side MIME whitelist
-          if (!ALLOWED_TYPES.has(mime)) {
+          // Server-side MIME whitelist (rejects truly unknown types)
+          if (!mime) {
             rejected.push(file.name);
             continue;
           }
