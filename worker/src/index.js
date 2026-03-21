@@ -31,9 +31,11 @@ function json(data, status = 200) {
   });
 }
 
-function checkAdmin(request, env) {
-  const pw = request.headers.get('X-Admin-Password');
-  return pw && pw === (env.ADMIN_PASSWORD || 'lagos123');
+function checkAdmin(request, env, searchParams) {
+  const correct = env.ADMIN_PASSWORD || 'lagos123';
+  const headerPw = request.headers.get('X-Admin-Password');
+  const queryPw  = searchParams ? searchParams.get('token') : null;
+  return (headerPw && headerPw === correct) || (queryPw && queryPw === correct);
 }
 
 async function sha256hex(buffer) {
@@ -136,7 +138,7 @@ export default {
 
         // Block pending and hashes from public access
         if (key.startsWith('pending/') || key.startsWith('hashes/')) {
-          if (!checkAdmin(request, env)) return new Response('Forbidden', { status: 403, headers: cors });
+          if (!checkAdmin(request, env, url.searchParams)) return new Response('Forbidden', { status: 403, headers: cors });
         }
 
         const obj = await env.BUCKET.get(key);

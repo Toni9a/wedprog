@@ -429,6 +429,22 @@
       });
     });
 
+    // IntersectionObserver — only load images as they scroll into view
+    const imgObserver = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const img = entry.target;
+        if (img.dataset.src) { img.src = img.dataset.src; delete img.dataset.src; }
+        obs.unobserve(img);
+      });
+    }, { rootMargin: '300px' });
+
+    function photoSrc(p) {
+      // Pending photos need the token since <img> can't send headers
+      const base = `${WORKER}${p.url}`;
+      return p.status === 'pending' ? `${base}?token=${encodeURIComponent(password)}` : base;
+    }
+
     function renderGrid() {
       const grid   = document.getElementById('grid');
       const status = document.getElementById('status');
@@ -456,10 +472,11 @@
         card.dataset.key = p.key;
 
         const img = document.createElement('img');
-        img.src = `${WORKER}${p.url}`;
+        img.dataset.src = photoSrc(p); // lazy — set by IntersectionObserver
         img.alt = p.name;
-        img.loading = 'lazy';
-        img.onload = () => card.classList.add('visible');
+        img.onload  = () => card.classList.add('visible');
+        img.onerror = () => card.classList.add('visible'); // show card even if image fails
+        imgObserver.observe(img);
 
         const badge = document.createElement('div');
         badge.className = `badge ${p.status}`;
@@ -506,6 +523,9 @@
           photo.key = newKey;
           photo.url = `/photo/${encodeURIComponent(newKey)}`;
           photo.status = 'approved';
+          // Update img src — no longer needs token now it's approved
+          const cardImg = card.querySelector('img');
+          if (cardImg) cardImg.src = `${WORKER}${photo.url}`;
         }
         btn.textContent = '✓ Approved';
         badge.className = 'badge approved';
