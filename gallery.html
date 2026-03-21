@@ -255,8 +255,13 @@
 
   <div class="filters">
     <button class="pill active" data-loc="">All</button>
+    <button class="pill" data-loc="Bridal Shower">Bridal Shower</button>
     <button class="pill" data-loc="Trad">Trad</button>
     <button class="pill" data-loc="Reception">Reception</button>
+    <button class="pill" data-loc="Food">Food</button>
+    <div style="margin-left:auto;display:flex;align-items:center;">
+      <button class="pill active" id="sort-btn" data-sort="recent" style="border-radius:20px;">Recent</button>
+    </div>
   </div>
 
   <div id="status">Loading photos…</div>
@@ -291,6 +296,7 @@
     let filtered  = [];
     let current   = 0;
     let activeFilter = '';
+    let activeSort   = 'recent'; // 'recent' | 'timeline'
 
     const lightbox   = document.getElementById('lightbox');
     const lbImg      = document.getElementById('lb-img');
@@ -312,8 +318,28 @@
       });
     });
 
+    // Sort toggle
+    const sortBtn = document.getElementById('sort-btn');
+    sortBtn.addEventListener('click', () => {
+      activeSort = activeSort === 'recent' ? 'timeline' : 'recent';
+      sortBtn.textContent = activeSort === 'recent' ? 'Recent' : 'Timeline';
+      applyFilter();
+    });
+
     function applyFilter() {
-      filtered = activeFilter ? allPhotos.filter(p => p.location === activeFilter) : allPhotos;
+      let pool = activeFilter ? allPhotos.filter(p => p.location === activeFilter) : allPhotos;
+      if (activeSort === 'timeline') {
+        // sort by actual photo timestamp ascending (oldest first = true chronological order)
+        pool = [...pool].sort((a, b) => {
+          const ta = parseInt(a.photoTakenAt) || parseInt(a.timestamp) || 0;
+          const tb = parseInt(b.photoTakenAt) || parseInt(b.timestamp) || 0;
+          return ta - tb;
+        });
+      } else {
+        // recent: sort by upload time descending
+        pool = [...pool].sort((a, b) => parseInt(b.timestamp) - parseInt(a.timestamp));
+      }
+      filtered = pool;
       renderGrid();
     }
 

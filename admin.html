@@ -264,7 +264,10 @@
         <button class="tab" data-filter="approved">Approved</button>
       </div>
     </header>
-    <div class="counts" id="counts"></div>
+    <div class="counts" id="counts">
+      <button id="approve-all-btn" style="display:none;margin-left:auto;background:none;border:1px solid rgba(201,169,110,0.5);color:#c9a96e;font-family:'Cormorant Garamond',serif;font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;padding:0.25rem 0.9rem;cursor:pointer;border-radius:2px;transition:all 0.2s;">Approve All Pending</button>
+    </div>
+    <div id="counts-text"></div>
     <div id="status">Loading…</div>
     <div id="grid"></div>
   </div>
@@ -317,11 +320,13 @@
     function renderGrid() {
       const grid   = document.getElementById('grid');
       const status = document.getElementById('status');
-      const counts = document.getElementById('counts');
+      const approveAllBtn = document.getElementById('approve-all-btn');
+      const countsText    = document.getElementById('counts-text');
 
       const pending  = photos.filter(p => p.status === 'pending').length;
       const approved = photos.filter(p => p.status === 'approved').length;
-      counts.innerHTML = `Pending: <span>${pending}</span> &nbsp;|&nbsp; Approved: <span>${approved}</span> &nbsp;|&nbsp; Total: <span>${photos.length}</span>`;
+      countsText.innerHTML = `<div style="padding:0.4rem 1.5rem 0.8rem;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(245,230,224,0.4);">Pending: <span style="color:#c9a96e">${pending}</span> &nbsp;|&nbsp; Approved: <span style="color:#c9a96e">${approved}</span> &nbsp;|&nbsp; Total: <span style="color:#c9a96e">${photos.length}</span></div>`;
+      approveAllBtn.style.display = pending > 0 ? 'block' : 'none';
 
       const filtered = currentFilter === 'all' ? photos : photos.filter(p => p.status === currentFilter);
       grid.innerHTML = '';
@@ -420,11 +425,41 @@
     }
 
     function renderCounts() {
-      const counts   = document.getElementById('counts');
+      const approveAllBtn = document.getElementById('approve-all-btn');
+      const countsText    = document.getElementById('counts-text');
       const pending  = photos.filter(p => p.status === 'pending').length;
       const approved = photos.filter(p => p.status === 'approved').length;
-      counts.innerHTML = `Pending: <span>${pending}</span> &nbsp;|&nbsp; Approved: <span>${approved}</span> &nbsp;|&nbsp; Total: <span>${photos.length}</span>`;
+      countsText.innerHTML = `<div style="padding:0.4rem 1.5rem 0.8rem;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(245,230,224,0.4);">Pending: <span style="color:#c9a96e">${pending}</span> &nbsp;|&nbsp; Approved: <span style="color:#c9a96e">${approved}</span> &nbsp;|&nbsp; Total: <span style="color:#c9a96e">${photos.length}</span></div>`;
+      approveAllBtn.style.display = pending > 0 ? 'block' : 'none';
     }
+
+    // Approve All
+    document.getElementById('approve-all-btn').addEventListener('click', async () => {
+      const pending = photos.filter(p => p.status === 'pending');
+      if (!pending.length) return;
+      if (!confirm(`Approve all ${pending.length} pending photos?`)) return;
+      document.getElementById('approve-all-btn').textContent = 'Approving…';
+      document.getElementById('approve-all-btn').disabled = true;
+      let done = 0;
+      for (const p of pending) {
+        try {
+          const res = await fetch(`${WORKER}/admin/approve`, {
+            method: 'POST',
+            headers: { 'X-Admin-Password': password, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: p.key }),
+          });
+          if (res.ok) {
+            const { newKey } = await res.json();
+            p.key    = newKey;
+            p.url    = `/photo/${encodeURIComponent(newKey)}`;
+            p.status = 'approved';
+            done++;
+          }
+        } catch {}
+      }
+      showToast(`Approved ${done} photos`);
+      renderGrid();
+    });
 
     function escHtml(str) {
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
