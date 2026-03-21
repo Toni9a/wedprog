@@ -61,6 +61,39 @@
     }
     .icon-btn:hover { border-color: #c9a96e; color: #c9a96e; }
 
+    /* Sort bar */
+    .sort-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 1.2rem;
+      border-bottom: 1px solid rgba(201,169,110,0.06);
+    }
+    .sort-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(245,230,224,0.25);
+    }
+    .sort-sep {
+      color: rgba(245,230,224,0.15);
+      font-size: 0.75rem;
+    }
+    .sort-opt {
+      background: none;
+      border: none;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(245,230,224,0.28);
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .sort-opt.active { color: #c9a96e; }
+    .sort-opt:hover  { color: rgba(201,169,110,0.7); }
+
     /* Filter pills */
     .filters {
       display: flex;
@@ -238,6 +271,88 @@
       text-transform: uppercase;
       margin-top: 0.3rem;
     }
+
+    /* ── SELECTION MODE ── */
+    .btn-select {
+      background: none;
+      border: none;
+      color: rgba(201,169,110,0.7);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.25s;
+    }
+    .btn-select:hover, .btn-select.active { color: #c9a96e; }
+
+    .grid-item.selected::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      background: rgba(201,169,110,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      color: #fff;
+    }
+    .grid-item.selected img { transform: scale(0.94); }
+
+    #download-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #1a1212;
+      border-top: 1px solid rgba(201,169,110,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1.5rem;
+      z-index: 100;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    #download-bar.show { transform: translateY(0); }
+
+    #sel-count {
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(245,230,224,0.5);
+    }
+
+    .bar-actions { display: flex; gap: 0.8rem; align-items: center; }
+
+    #btn-download-sel {
+      border: 1px solid #c9a96e;
+      background: #c9a96e;
+      color: #1a1212;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.5rem 1.2rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: opacity 0.2s;
+    }
+    #btn-download-sel:disabled { opacity: 0.4; cursor: not-allowed; }
+    #btn-download-sel:not(:disabled):hover { opacity: 0.85; }
+
+    #btn-cancel-sel {
+      background: none;
+      border: none;
+      color: rgba(245,230,224,0.4);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    #btn-cancel-sel:hover { color: rgba(245,230,224,0.8); }
   </style>
 </head>
 <body>
@@ -245,13 +360,25 @@
   <header>
     <button class="back" onclick="location.href='index.html'">← Program</button>
     <h1>Guest Photos</h1>
+    <div style="display:flex;align-items:center;gap:1rem;">
+    <button class="btn-select" id="btn-select-mode">Select</button>
     <a href="upload.html" class="icon-btn" title="Upload photos">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
         <circle cx="12" cy="13" r="4"/>
       </svg>
     </a>
+    </div>
   </header>
+
+  <!-- DOWNLOAD BAR -->
+  <div id="download-bar">
+    <span id="sel-count">0 selected</span>
+    <div class="bar-actions">
+      <button id="btn-cancel-sel">Cancel</button>
+      <button id="btn-download-sel" disabled>Download</button>
+    </div>
+  </div>
 
   <div class="filters">
     <button class="pill active" data-loc="">All</button>
@@ -259,9 +386,12 @@
     <button class="pill" data-loc="Trad">Trad</button>
     <button class="pill" data-loc="Reception">Reception</button>
     <button class="pill" data-loc="Food">Food</button>
-    <div style="margin-left:auto;display:flex;align-items:center;">
-      <button class="pill active" id="sort-btn" data-sort="recent" style="border-radius:20px;">Recent</button>
-    </div>
+  </div>
+  <div class="sort-bar">
+    <span class="sort-label">View by</span>
+    <button class="sort-opt active" id="sort-recent">Recent</button>
+    <span class="sort-sep">·</span>
+    <button class="sort-opt" id="sort-timeline">Timeline</button>
   </div>
 
   <div id="status">Loading photos…</div>
@@ -289,6 +419,7 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     const WORKER = 'https://wedding-uploads-worker.oluwatoni-esan.workers.dev';
 
@@ -318,11 +449,17 @@
       });
     });
 
-    // Sort toggle
-    const sortBtn = document.getElementById('sort-btn');
-    sortBtn.addEventListener('click', () => {
-      activeSort = activeSort === 'recent' ? 'timeline' : 'recent';
-      sortBtn.textContent = activeSort === 'recent' ? 'Recent' : 'Timeline';
+    // Sort
+    document.getElementById('sort-recent').addEventListener('click', () => {
+      activeSort = 'recent';
+      document.getElementById('sort-recent').classList.add('active');
+      document.getElementById('sort-timeline').classList.remove('active');
+      applyFilter();
+    });
+    document.getElementById('sort-timeline').addEventListener('click', () => {
+      activeSort = 'timeline';
+      document.getElementById('sort-timeline').classList.add('active');
+      document.getElementById('sort-recent').classList.remove('active');
       applyFilter();
     });
 
@@ -360,7 +497,11 @@
         img.loading = 'lazy';
         img.onload = () => div.classList.add('visible');
         div.appendChild(img);
-        div.addEventListener('click', () => openLightbox(i));
+        if (selected.has(i)) div.classList.add('selected');
+        div.addEventListener('click', () => {
+          if (selectMode) toggleSelect(i, div);
+          else openLightbox(i);
+        });
         grid.appendChild(div);
       });
     }
@@ -430,6 +571,71 @@
       if (e.key === 'ArrowLeft')  setSlide(current - 1);
       if (e.key === 'ArrowRight') setSlide(current + 1);
       if (e.key === 'Escape')     closeLightbox();
+    });
+
+    // ── SELECTION MODE ──
+    let selectMode = false;
+    let selected = new Set();
+
+    const btnSelectMode   = document.getElementById('btn-select-mode');
+    const downloadBar     = document.getElementById('download-bar');
+    const selCount        = document.getElementById('sel-count');
+    const btnDownloadSel  = document.getElementById('btn-download-sel');
+    const btnCancelSel    = document.getElementById('btn-cancel-sel');
+
+    btnSelectMode.addEventListener('click', () => toggleSelectMode(true));
+    btnCancelSel.addEventListener('click', () => toggleSelectMode(false));
+
+    function toggleSelectMode(on) {
+      selectMode = on;
+      selected.clear();
+      btnSelectMode.classList.toggle('active', on);
+      downloadBar.classList.toggle('show', on);
+      updateSelCount();
+      // Re-render so click handlers update
+      renderGrid();
+    }
+
+    function toggleSelect(i, el) {
+      if (selected.has(i)) { selected.delete(i); el.classList.remove('selected'); }
+      else                  { selected.add(i);    el.classList.add('selected'); }
+      updateSelCount();
+    }
+
+    function updateSelCount() {
+      const n = selected.size;
+      selCount.textContent = n === 1 ? '1 selected' : `${n} selected`;
+      btnDownloadSel.disabled = n === 0;
+    }
+
+    btnDownloadSel.addEventListener('click', async () => {
+      const items = [...selected].map(i => filtered[i]);
+      if (!items.length) return;
+
+      btnDownloadSel.textContent = 'Zipping…';
+      btnDownloadSel.disabled = true;
+
+      try {
+        const zip = new JSZip();
+        await Promise.all(items.map(async (p, idx) => {
+          const res  = await fetch(`${WORKER}${p.url}`);
+          const blob = await res.blob();
+          const ext  = p.url.split('.').pop().split('?')[0] || 'jpg';
+          zip.file(`photo_${idx + 1}.${ext}`, blob);
+        }));
+        const content = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = 'wedding_photos.zip';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        alert('Download failed — please try again.');
+      }
+
+      btnDownloadSel.textContent = 'Download';
+      btnDownloadSel.disabled = false;
+      toggleSelectMode(false);
     });
 
     let tx = 0;

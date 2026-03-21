@@ -1,0 +1,10 @@
+name = "wedding-uploads-worker"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+account_id = "eb8193d2791bec64568e1115104e2e1d"
+
+workers_dev = true
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "wedding-uploads"

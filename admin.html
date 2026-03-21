@@ -242,6 +242,96 @@
       white-space: nowrap;
     }
     .toast.show { opacity: 1; }
+
+    /* ── EXPORT MODAL ── */
+    #export-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,6,6,0.92);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    #export-modal.open { display: flex; }
+    .modal-box {
+      background: #231818;
+      border: 1px solid rgba(201,169,110,0.25);
+      border-radius: 4px;
+      padding: 2rem 2rem 1.8rem;
+      max-width: 480px;
+      width: 100%;
+      position: relative;
+    }
+    .modal-box h2 {
+      font-size: 1rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #c9a96e;
+      margin-bottom: 1.2rem;
+    }
+    .modal-box ol {
+      padding-left: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      color: rgba(245,230,224,0.7);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      margin-bottom: 1.6rem;
+    }
+    .modal-box ol code {
+      background: rgba(201,169,110,0.12);
+      color: #c9a96e;
+      padding: 0.1rem 0.4rem;
+      border-radius: 2px;
+      font-size: 0.85rem;
+    }
+    .modal-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+    .btn-download {
+      border: 1px solid #c9a96e;
+      background: #c9a96e;
+      color: #1a1212;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 0.6rem 1.4rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: opacity 0.2s;
+    }
+    .btn-download:hover { opacity: 0.85; }
+    .btn-close-modal {
+      background: none;
+      border: 1px solid rgba(201,169,110,0.3);
+      color: rgba(245,230,224,0.5);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.6rem 1.2rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+    .btn-close-modal:hover { border-color: #c9a96e; color: #c9a96e; }
+    .btn-export {
+      background: none;
+      border: 1px solid rgba(201,169,110,0.4);
+      color: rgba(201,169,110,0.8);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.4rem 1rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+    .btn-export:hover { border-color: #c9a96e; color: #c9a96e; }
   </style>
 </head>
 <body>
@@ -258,10 +348,13 @@
   <div id="app">
     <header>
       <h1>Wedding Gallery — Admin</h1>
-      <div class="tabs">
-        <button class="tab active" data-filter="all">All</button>
-        <button class="tab" data-filter="pending">Pending</button>
-        <button class="tab" data-filter="approved">Approved</button>
+      <div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;">
+        <div class="tabs">
+          <button class="tab active" data-filter="all">All</button>
+          <button class="tab" data-filter="pending">Pending</button>
+          <button class="tab" data-filter="approved">Approved</button>
+        </div>
+        <button class="btn-export" id="export-btn">Export to Google Photos ↗</button>
       </div>
     </header>
     <div class="counts" id="counts">
@@ -273,6 +366,25 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- EXPORT MODAL -->
+  <div id="export-modal">
+    <div class="modal-box">
+      <h2>Export to Google Photos</h2>
+      <ol>
+        <li>Install <strong>rclone</strong>: <code>brew install rclone</code> or download at rclone.org</li>
+        <li>Run <code>rclone config</code> → add a remote named <code>gphotos</code> → type: Google Photos → log in with the couple's Google account</li>
+        <li>Go to <strong>Cloudflare R2 → Manage R2 API Tokens</strong> → create a token with Read access → copy the Access Key ID &amp; Secret</li>
+        <li>Download the script below, open it in a text editor, and fill in your R2 keys at the top</li>
+        <li>Run: <code>python3 export_to_google_photos.py</code></li>
+      </ol>
+      <p style="font-size:0.8rem;font-style:italic;color:rgba(245,230,224,0.35);margin-bottom:1.4rem;">Photos will be uploaded into albums by location — Trad, Reception, etc.</p>
+      <div class="modal-actions">
+        <button class="btn-download" id="download-script-btn">Download Script</button>
+        <button class="btn-close-modal" id="close-modal-btn">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const WORKER = 'https://wedding-uploads-worker.oluwatoni-esan.workers.dev';
@@ -464,6 +576,24 @@
     function escHtml(str) {
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
+
+    // ── EXPORT MODAL ──
+    document.getElementById('export-btn').addEventListener('click', () => {
+      document.getElementById('export-modal').classList.add('open');
+    });
+    document.getElementById('close-modal-btn').addEventListener('click', () => {
+      document.getElementById('export-modal').classList.remove('open');
+    });
+    document.getElementById('export-modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('export-modal'))
+        document.getElementById('export-modal').classList.remove('open');
+    });
+    document.getElementById('download-script-btn').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = 'export_to_google_photos.py';
+      a.download = 'export_to_google_photos.py';
+      a.click();
+    });
 
     function showToast(msg) {
       const t = document.getElementById('toast');

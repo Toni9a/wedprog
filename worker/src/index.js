@@ -17,6 +17,11 @@ function checkAdmin(request) {
   return request.headers.get('X-Admin-Password') === ADMIN_PASSWORD;
 }
 
+async function sha256hex(buffer) {
+  const digest = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -39,30 +44,51 @@ export default {
         if (!files.length) return json({ error: 'No files provided' }, 400);
 
         const uploaded = [];
+        const duplicates = [];
+
         for (let idx = 0; idx < files.length; idx++) {
           const file = files[idx];
-          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-          const id = crypto.randomUUID();
+
+          // Buffer the file so we can hash it and then store it
+          const bytes = await file.arrayBuffer();
+          const hash  = await sha256hex(bytes);
+          const hashKey = `hashes/${hash}`;
+
+          // Check for duplicate
+          const existing = await env.BUCKET.head(hashKey);
+          if (existing) {
+            duplicates.push(file.name);
+            continue;
+          }
+
+          const ext        = (file.name.split('.').pop() || 'jpg').toLowerCase();
+          const id         = crypto.randomUUID();
           const uploadedAt = Date.now().toString();
           const photoTakenAt = (lastModifieds[idx] || '').toString();
-          const key = `pending/${uploadedAt}-${id}.${ext}`;
-          await env.BUCKET.put(key, file.stream(), {
+          const key        = `pending/${uploadedAt}-${id}.${ext}`;
+
+          // Store photo
+          await env.BUCKET.put(key, bytes, {
             httpMetadata: { contentType: file.type || 'image/jpeg' },
             customMetadata: {
-              name,
-              note,
-              email,
-              location,
+              name, note, email, location,
               status: 'pending',
               timestamp: uploadedAt,
-              photoTakenAt,        // actual device timestamp of the photo
+              photoTakenAt,
               originalName: file.name,
+              hash,
             },
           });
+
+          // Store hash marker so future duplicates are caught
+          await env.BUCKET.put(hashKey, new Uint8Array(0), {
+            customMetadata: { photoKey: key },
+          });
+
           uploaded.push(key);
         }
 
-        return json({ success: true, count: uploaded.length });
+        return json({ success: true, count: uploaded.length, duplicates });
       }
 
       // Gallery – approved photos only
@@ -77,6 +103,7 @@ export default {
             note: obj.customMetadata?.note || '',
             location: obj.customMetadata?.location || '',
             photoTakenAt: obj.customMetadata?.photoTakenAt || '',
+            timestamp: obj.customMetadata?.timestamp || '',
           }));
         return json({ photos });
       }
@@ -107,6 +134,7 @@ export default {
           email: obj.customMetadata?.email || '',
           location: obj.customMetadata?.location || '',
           photoTakenAt: obj.customMetadata?.photoTakenAt || '',
+          hash: obj.customMetadata?.hash || '',
           status,
           timestamp: obj.customMetadata?.timestamp || '0',
         });
@@ -117,7 +145,7 @@ export default {
         return json({ photos });
       }
 
-      // Admin – approve photo (copy pending → approved, delete pending)
+      // Admin – approve photo
       if (path === '/admin/approve' && request.method === 'POST') {
         if (!checkAdmin(request)) return json({ error: 'Unauthorized' }, 401);
         const { key } = await request.json();
@@ -130,14 +158,24 @@ export default {
           customMetadata: { ...meta, status: 'approved' },
         });
         await env.BUCKET.delete(key);
+        // Update hash marker to point to new key
+        if (meta.hash) {
+          await env.BUCKET.put(`hashes/${meta.hash}`, new Uint8Array(0), {
+            customMetadata: { photoKey: newKey },
+          });
+        }
         return json({ success: true, newKey });
       }
 
-      // Admin – delete photo
+      // Admin – delete photo (also removes hash so same photo can be re-uploaded)
       if (path === '/admin/delete' && request.method === 'DELETE') {
         if (!checkAdmin(request)) return json({ error: 'Unauthorized' }, 401);
         const { key } = await request.json();
+        // Get hash before deleting
+        const obj = await env.BUCKET.get(key);
+        const hash = obj?.customMetadata?.hash;
         await env.BUCKET.delete(key);
+        if (hash) await env.BUCKET.delete(`hashes/${hash}`);
         return json({ success: true });
       }
 
