@@ -1,0 +1,16 @@
+{
+  "name": "weddinggal",
+  "version": "1.0.0",
+  "description": "Wedding photo gallery with Vercel Web Analytics",
+  "private": true,
+  "scripts": {
+    "dev": "python -m http.server 8000",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "keywords": ["wedding", "gallery", "analytics"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1"
+  }
+}
